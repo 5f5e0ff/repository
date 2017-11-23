@@ -1,6 +1,7 @@
 import os # 警告を消す
 os.environ[ 'TF_CPP_MIN_LOG_LEVEL' ] = '2'
 import tensorflow as tf
+import matplotlib.pyplot as plt
 
 class featuresAndAnswers:
     def __init__(self, features, answers):
@@ -25,16 +26,16 @@ class trainingAndTest():
 
 class Model:
     def __init__(self, features, answers, layers=[], low=0.8, high=1.0, seeds=1):
-        # 80%をトレーニングに使う
+        # low-highをトレーニングに使う
         self.data = trainingAndTest(features, answers, low, high)
         # placeholderは変数みたいなもん
         self.real_answer = tf.placeholder(tf.float32,  shape=(None, self.data.answer_type_count))
         self.feature = tf.placeholder(tf.float32, shape=(None, self.data.feature_type_count))
         self.model = self.createTfModel(layers, seeds)
-        # 目標値との誤差 reduce_sumで全部足しちゃう
-        cost = -tf.reduce_sum(self.real_answer*tf.log(self.model))
+        # 目標値との誤差 reduce_meanで平均を取る 1e-10~1.0に正規化することでlog0を回避
+        cost = -tf.reduce_mean(self.real_answer*tf.log(tf.clip_by_value(self.model,1e-10,1.0)))
         # 最適化のアルゴリズム。アダムは評価が高いらしいほかにも10個位tensorflow api にある
-        self.step = tf.train.AdamOptimizer(learning_rate=0.0001).minimize(cost)
+        self.step = cost, tf.train.AdamOptimizer(learning_rate=0.0001).minimize(cost)
         self.session = tf.Session()
         self.session.run(tf.global_variables_initializer())
         # 正答率の算出 いつもおんなじ？
@@ -73,16 +74,47 @@ class Model:
                 return tf.nn.softmax(logits)
 
     def train(self,count=30000,print_count=10):
+        # train_list
         feed_dict = {
             self.feature: self.data.traning.features,
             self.real_answer: self.data.traning.answers
         }
+        # test_list
+        feed_dict_t = {
+            self.feature: self.data.test.features,
+            self.real_answer: self.data.test.answers
+        }
+        loss_vec = []
+        train_acc = []
+        test_acc = []
+        print("Epoch \t loss")
         for i in range(1, count+1):
-            # feed_dictからself.stepを評価
-            self.session.run(self.step,feed_dict)
+            # feed_dictからself.stepを評価, コスト関数を計算
+            temp_loss = self.session.run(self.step,feed_dict)
+            loss_vec.append(temp_loss[0])
+            if i % 10 == 0:
+                # trainの正解率, testの正解率を計算
+                temp_acc_train = self.session.run(self.accuracy,feed_dict)
+                temp_acc_test = self.session.run(self.accuracy,feed_dict_t)
+                train_acc.append(temp_acc_train)
+                test_acc.append(temp_acc_test)
             if i % (count/print_count) == 0:
-                # feed_dictからself.accuracyを評価してるのでaccuracyが返ってくる
-                print( i, self.session.run(self.accuracy,feed_dict))
+                # コスト関数の表示
+                print( i, "\t", loss_vec[-1])
+        # Plot loss over time
+        plt.plot(loss_vec, 'k-')
+        plt.title('Cross Entropy Loss per Generation')
+        plt.xlabel('Generation')
+        plt.ylabel('Cross Entropy Loss')
+        plt.show()
+        # Plot train and test accuracy
+        plt.plot(train_acc, 'k-', label='Train Set Accuracy')
+        plt.plot(test_acc, 'r-', label='Test Set Accuracy')
+        plt.title('Train and Test Accuracy')
+        plt.xlabel('Generation')
+        plt.ylabel('Accuracy')
+        plt.legend(loc='lower right')
+        plt.show()
 
     def test(self):
         # test_list
