@@ -2,6 +2,7 @@ import os # 警告を消す
 os.environ[ 'TF_CPP_MIN_LOG_LEVEL' ] = '2'
 import tensorflow as tf
 import matplotlib.pyplot as plt
+import numpy as np
 
 class featuresAndAnswers:
     def __init__(self, features, answers):
@@ -175,3 +176,24 @@ class Model:
         print("Up_Accuracy\t=", one_one/(one_one+one_zero))
         print("Down_Accuracy\t=", zero_zero/(zero_one+zero_zero))
         print("Accuracy\t=", (one_one+zero_zero)/(one_one+one_zero+zero_one+zero_zero))
+
+    def value(self, ANSWER):
+        # test_list
+        feed_dict_t = {
+            self.feature: self.data.test.features,
+            self.real_answer: self.data.test.answers
+        }
+        predictions = tf.argmax(self.model, 1)
+        answer = self.session.run(predictions, feed_dict_t)
+        data = np.array(feed_dict_t[self.feature][ANSWER])
+        value = [0]
+        for i in range(1, len(answer)):
+            if answer[i-1] == 0: temp_value = data[i]
+            else: temp_value = -data[i]
+            value.append(temp_value+value[-1])
+        plt.plot(value, 'k-', label='Asset volatility')
+        plt.title('Asset volatility')
+        plt.xlabel('Date')
+        plt.ylabel('Volatility')
+        plt.legend(loc='lower right')
+        plt.show()
