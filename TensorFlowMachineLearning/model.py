@@ -72,7 +72,7 @@ class Model:
             stddev = pow(6/(feature_type_count+need_answer_count), 0.5)
             weights = tf.Variable(tf.truncated_normal([feature_type_count, need_answer_count], stddev=stddev, seed=seeds))
             # バイアス
-            biases = tf.Variable(tf.ones([need_answer_count]))
+            biases = tf.Variable(tf.truncated_normal([need_answer_count], stddev=1, seed=seeds))
             # matmulは掛け算feature * weights
             logits = tf.matmul(feature, weights) + biases
             if loop_count is not loop_count_max - 1  :
@@ -86,9 +86,10 @@ class Model:
         loss_vec = []
         train_acc = []
         test_acc = []
+        batch_size = 128
         print("Epoch \t loss")
         for i in range(1, count+1):
-            number = np.random.choice(len(self.data.traning.features),1000)
+            number = np.random.choice(len(self.data.traning.features),batch_size)
             # train_list
             feed_dict = {
                 self.feature: self.data.traning.features.iloc[number],
@@ -115,7 +116,7 @@ class Model:
                 # コスト関数の表示
                 print( i, "\t", np.mean(loss_vec[-temp:-1]))
                 # 長期間更新されなかったとき
-                if(np.mean(loss_vec[-temp:-1]) >= np.mean(loss_vec[-temp*2:-temp])):
+                if(np.mean(loss_vec[-temp:-1]) >= np.mean(loss_vec[-temp*3:-temp*2])):
                     break
         # Plot loss over time
         plt.plot(loss_vec, 'k-')
@@ -184,7 +185,7 @@ class Model:
                 tf.float32
             )
         )
-        one_one, one_zero, zero_one, zero_zero = self.session.run(
+        zero_zero, zero_one, one_zero, one_one = self.session.run(
             [onezero_onezero, onezero_zeroone, zeroone_onezero, zeroone_zeroone],
             feed_dict_t
         )
@@ -203,8 +204,8 @@ class Model:
         data = np.array(feed_dict_t[self.feature][ANSWER])
         value = [0]
         for i in range(1, len(answer)):
-            if answer[i-1] == 0: temp_value = data[i]
-            else: temp_value = -data[i]
+            if answer[i-1] == 0: temp_value = -data[i]
+            else: temp_value = data[i]
             value.append(temp_value+value[-1])
         plt.plot(value, 'k-', label='Asset volatility')
         plt.title('Asset volatility')
