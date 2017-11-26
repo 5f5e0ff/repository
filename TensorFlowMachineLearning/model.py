@@ -193,7 +193,7 @@ class Model:
         print("Down_Accuracy\t=", zero_zero/(zero_one+zero_zero))
         print("Accuracy\t=", (one_one+zero_zero)/(one_one+one_zero+zero_one+zero_zero))
 
-    def value(self, ANSWER):
+    def value(self, ANSWER, LH):
         # test_list
         feed_dict_t = {
             self.feature: self.data.test.features,
@@ -202,10 +202,12 @@ class Model:
         predictions = tf.argmax(self.model, 1)
         answer = self.session.run(predictions, feed_dict_t)
         data = np.array(feed_dict_t[self.feature][ANSWER])
+        number = LH[self.data.test.answers.index]
         value = [0]
         for i in range(1, len(answer)):
-            if answer[i-1] == 0: temp_value = -data[i]
-            else: temp_value = data[i]
+            temp_value = 0
+            if answer[i-1] == 0 and number[i] > 0: temp_value = -data[i]
+            if answer[i-1] == 1 and number[i] > 0: temp_value = data[i]
             value.append(temp_value+value[-1])
         plt.plot(value, 'k-', label='Asset volatility')
         plt.title('Asset volatility')
