@@ -139,59 +139,14 @@ class Model:
             self.feature: self.data.test.features,
             self.real_answer: self.data.test.answers
         }
-        predictions = tf.argmax(self.model, 1)
-        real_answers = tf.argmax(self.real_answer, 1)
-        ones_real_answers = tf.ones_like(real_answers)
-        zeros_real_answers = tf.zeros_like(real_answers)
-        ones_predictions = tf.ones_like(predictions)
-        zeros_predictions = tf.zeros_like(predictions)
-        # 答え01, 予想01
-        zeroone_zeroone = tf.reduce_sum(
-            tf.cast(
-                tf.logical_and(
-                    tf.equal(real_answers, ones_real_answers),
-                    tf.equal(predictions, ones_predictions)
-                ),
-                tf.float32
-            )
-        )
-        # 答え01, 予想10
-        zeroone_onezero = tf.reduce_sum(
-            tf.cast(
-                tf.logical_and(
-                    tf.equal(real_answers, ones_real_answers),
-                    tf.equal(predictions, zeros_predictions)
-                ),
-                tf.float32
-            )
-        )
-        # 答え10, 予想01
-        onezero_zeroone = tf.reduce_sum(
-            tf.cast(
-                tf.logical_and(
-                    tf.equal(real_answers, zeros_real_answers),
-                    tf.equal(predictions, ones_predictions)
-                ),
-                tf.float32
-            )
-        )
-        # 答え10, 予想10
-        onezero_onezero = tf.reduce_sum(
-            tf.cast(
-                tf.logical_and(
-                    tf.equal(real_answers, zeros_real_answers),
-                    tf.equal(predictions, zeros_predictions)
-                ),
-                tf.float32
-            )
-        )
-        zero_zero, zero_one, one_zero, one_one = self.session.run(
-            [onezero_onezero, onezero_zeroone, zeroone_onezero, zeroone_zeroone],
-            feed_dict_t
-        )
-        print("Up_Accuracy\t=", one_one/(one_one+one_zero))
-        print("Down_Accuracy\t=", zero_zero/(zero_one+zero_zero))
-        print("Accuracy\t=", (one_one+zero_zero)/(one_one+one_zero+zero_one+zero_zero))
+        answer = np.round(self.session.run(self.model,feed_dict_t), 0)
+                accuracy = []
+        for i in range(0, len(test_y[0])):
+            indexes = [j for j, x in enumerate(test_y[:,i]) if x == 1]
+            accuracy.append(np.mean(answer[indexes,i]))
+        print("Individual accuracy", accuracy)
+        accuracy = np.array(answer == test_y)
+        print ("accuracy", np.mean(accuracy))
 
     def value(self, ANSWER, LH):
         # test_list
@@ -209,11 +164,11 @@ class Model:
             if answer[i-1][0] > 0.5 and number[i] > 0: temp_value = -data[i]
             if answer[i-1][1] > 0.5 and number[i] > 0: temp_value = +data[i]
             value.append(temp_value+value[-1])
-        print("Final_Answer :", answer[-1])
         plt.plot(value, 'k-', label='Asset volatility')
         plt.title('Asset volatility')
         plt.xlabel('Date')
         plt.ylabel('Volatility')
         plt.legend(loc='lower right')
         plt.show()
+        print("Final_Answer :", answer[-1])
         print("Final_Asset :", value[-1], "\n")
