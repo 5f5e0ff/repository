@@ -200,14 +200,14 @@ class Model:
             self.real_answer: self.data.test.answers
         }
         predictions = tf.argmax(self.model, 1)
-        answer = self.session.run(predictions, feed_dict_t)
+        answer = self.session.run(self.model, feed_dict_t)
         data = np.array(feed_dict_t[self.feature][ANSWER])
         number = LH[self.data.test.answers.index]
         value = [1]
         for i in range(1, len(answer)):
             temp_value = 0
-            if answer[i-1] == 0 and number[i] > 0: temp_value = -data[i]
-            if answer[i-1] == 1 and number[i] > 0: temp_value = +data[i]
+            if answer[i-1][0] > 0.5 and number[i] > 0: temp_value = -data[i]
+            if answer[i-1][1] > 0.5 and number[i] > 0: temp_value = +data[i]
             value.append(temp_value+value[-1])
         print("Final_Answer :", answer[-1])
         plt.plot(value, 'k-', label='Asset volatility')
