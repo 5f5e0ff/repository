@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pandas_datareader.data as web
 
-INDEIES = ['^AORD',
+INDEIESaa = ['^AORD',
            '^STOXX50E',
            '^FCHI',
            '^GDAXI',
@@ -20,8 +20,17 @@ INDEIES = ['^AORD',
            'EURJPY=X',
            'GBPJPY=X',
           ]
-start = '2005-01-01'
-end = None
+INDEIES = ['^AORD',
+           '^N225',
+           '^HSI',
+           '^GDAXI',
+           '^FTSE',
+           '^NYA',
+           '^DJI',
+           '^GSPC'
+          ]
+start = '1998-01-01'
+end = '2017-12-31'
 
 if __name__ == "__main__":
     for stock in INDEIES:

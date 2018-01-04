@@ -11,23 +11,23 @@ class featuresAndAnswers:
 
 class trainingAndTest():
     def __init__(self, features, answers, low, high):
+        # low - highをテスト, それ以外をトレーニングに使う
         low_number = int(len(features)*low)
         high_number = int(len(features)*high)
+        drop_list = range(low_number, high_number)
         test_features = features[low_number:high_number]
         test_answers = answers[low_number:high_number]
-        for i in range(low_number, high_number):
-            features=features.drop([i])
-            answers=answers.drop([i])
-        self.traning = featuresAndAnswers(features, answers)
+        train_features=features.drop(drop_list)
+        train_answers=answers.drop(drop_list)
+        self.traning = featuresAndAnswers(train_features, train_answers)
         self.test = featuresAndAnswers(test_features, test_answers)
-        # N225_1 とかいっぱい
+        # 入力及び出力のニューロン数
         self.feature_type_count = len(features.columns)
-        # positive nagativeの２つ
         self.answer_type_count = len(answers.columns)
 
 class Model:
     def __init__(self, features, answers, layers=[], low=0.8, high=1.0, seeds=1):
-        # low-highをトレーニングに使う
+        # low - highをテストに使う
         self.data = trainingAndTest(features, answers, low, high)
         # placeholderは変数みたいなもん
         self.real_answer = tf.placeholder(tf.float32,  shape=(None, self.data.answer_type_count))
@@ -83,25 +83,23 @@ class Model:
                 return tf.nn.softmax(logits)
 
     def train(self,count=30000,print_count=10):
+        # train_list
+        feed_dict = {
+            self.feature: self.data.traning.features,
+            self.real_answer: self.data.traning.answers,
+            self.keep_probin: 0.8,
+            self.keep_probhid: 0.5
+        }
+        # test_list
+        feed_dict_t = {
+            self.feature: self.data.test.features,
+            self.real_answer: self.data.test.answers
+        }
         loss_vec = []
         train_acc = []
         test_acc = []
-        batch_size = 128
         print("Epoch \t loss")
         for i in range(1, count+1):
-            number = np.random.choice(len(self.data.traning.features),batch_size)
-            # train_list
-            feed_dict = {
-                self.feature: self.data.traning.features.iloc[number],
-                self.real_answer: self.data.traning.answers.iloc[number],
-                self.keep_probin: 0.8,
-                self.keep_probhid: 0.5
-            }
-            # test_list
-            feed_dict_t = {
-                self.feature: self.data.test.features,
-                self.real_answer: self.data.test.answers
-            }
             # feed_dictからself.stepを評価, コスト関数を計算
             temp_loss = self.session.run(self.step,feed_dict)
             loss_vec.append(temp_loss[0])
@@ -115,9 +113,6 @@ class Model:
                 temp = int(count/print_count/4)
                 # コスト関数の表示
                 print( i, "\t", np.mean(loss_vec[-temp:-1]))
-                # 長期間更新されなかったとき
-                if(np.mean(loss_vec[-temp:-1]) >= np.mean(loss_vec[-temp*3:-temp*2])):
-                    break
         # Plot loss over time
         plt.plot(loss_vec, 'k-')
         plt.title('Cross Entropy Loss per Generation')
@@ -140,29 +135,25 @@ class Model:
             self.real_answer: self.data.test.answers
         }
         answer = np.round(self.session.run(self.model,feed_dict_t), 0)
-                accuracy = []
-        for i in range(0, len(test_y[0])):
-            indexes = [j for j, x in enumerate(test_y[:,i]) if x == 1]
+        accuracy = []
+        for i in range(0, len(self.data.test.answers[0])):
+            indexes = [j for j, x in enumerate(self.data.test.answers[:,i]) if x == 1]
             accuracy.append(np.mean(answer[indexes,i]))
         print("Individual accuracy", accuracy)
-        accuracy = np.array(answer == test_y)
+        accuracy = np.array(answer == self.data.test.answers)
         print ("accuracy", np.mean(accuracy))
 
-    def value(self, ANSWER, LH):
-        # test_list
-        feed_dict_t = {
-            self.feature: self.data.test.features,
-            self.real_answer: self.data.test.answers
-        }
-        predictions = tf.argmax(self.model, 1)
-        answer = self.session.run(self.model, feed_dict_t)
-        data = np.array(feed_dict_t[self.feature][ANSWER])
-        number = LH[self.data.test.answers.index]
+    def value(self, ANSWER, LH=[]):
+        if len(LH) == 0: number = np.ones(len(self.data.test.features))
+        else : number = LH[self.data.test.answers.index]
+        answer = self.model.predict(np.array(self.data.test.features))
+        data = np.array(self.data.test.features[ANSWER])
         value = [1]
         for i in range(1, len(answer)):
             temp_value = 0
-            if answer[i-1][0] > 0.5 and number[i] > 0: temp_value = -data[i]
-            if answer[i-1][1] > 0.5 and number[i] > 0: temp_value = +data[i]
+            if number[i-1] >= 0:
+                if answer[i-1][0] > 0.5: temp_value = -data[i]
+                if answer[i-1][1] > 0.5: temp_value = +data[i]
             value.append(temp_value+value[-1])
         plt.plot(value, 'k-', label='Asset volatility')
         plt.title('Asset volatility')

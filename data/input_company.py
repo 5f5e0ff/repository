@@ -5,9 +5,12 @@ import matplotlib.pyplot as plt
 import pandas.tools.plotting as plotting
 import datetime as dt
 
-number = '9433'
-start = '2005-01-01'
-end = None
+NUMBER = ['2914',
+          '4503',
+          '6758',
+         ]
+start = '1998-01-01'
+end = '2017-12-31'
 
 def get_quote_yahoojp(code, start=None, end=None, interval='d'):
     base = 'http://info.finance.yahoo.co.jp/history/?code={0}.T&{1}&{2}&tm={3}&p={4}'
@@ -44,6 +47,7 @@ def get_quote_yahoojp(code, start=None, end=None, interval='d'):
     return result
 
 if __name__ == '__main__':
-    df = get_quote_yahoojp(number, start=start, end=end)
-    df.to_csv(number+".csv")
-    print(number, "OK.")
+    for company in NUMBER:
+        df = get_quote_yahoojp(company, start=start, end=end)
+        df.to_csv(company+".csv")
+        print(company, "OK.")
